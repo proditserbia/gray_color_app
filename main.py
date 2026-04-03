@@ -15,7 +15,6 @@ import shutil
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
-from datetime import datetime
 from pathlib import Path
 from typing import Tuple
 
@@ -113,8 +112,10 @@ def classify_image(filepath: str) -> Tuple[str, float, str]:
 
         return classification, score, ""
 
-    except Exception as exc:  # noqa: BLE001
+    except (cv2.error, IOError, ValueError, MemoryError) as exc:
         return "Error", 0.0, str(exc)
+    except Exception as exc:  # noqa: BLE001 — catch-all for unexpected failures
+        return "Error", 0.0, f"Unexpected error: {exc}"
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +208,7 @@ def process_images(
             try:
                 copy_file(filepath, dest_path)
                 counts[classification] += 1
-            except Exception as exc:  # noqa: BLE001
+            except (shutil.Error, OSError, PermissionError) as exc:
                 classification = "Error"
                 error = str(exc)
                 counts["error"] += 1
@@ -233,7 +234,7 @@ def process_images(
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(log_rows)
-    except Exception as exc:  # noqa: BLE001
+    except (OSError, PermissionError, csv.Error) as exc:
         log_path = f"(log write failed: {exc})"
 
     done_callback(counts, log_path)
